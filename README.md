@@ -5,4 +5,4 @@ I have put my own front end on it in PowerBI, but all the data prep has been don
 
 #pip install requirements.txt file to get additional packages #To run - download the whole folder and execute the run.py 
 
-#movement.py no longers runs as citymapper depreciated the api
+#movement.py no longers runs as citymapper depreciated the api, to run the rest of the script simply comment out line 55 to 61 in the "run.py file"
