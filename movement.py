@@ -1,15 +1,12 @@
-import urllib.request
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 import ssl
-import re
 import sqlite3
-import datetime
 import pandas as pd
 import numpy as np
-import pycountry
 import country_converter as coco
 
+'''this is a class that queries the citimapper website and takes the activity data for each region over time and plots it, this is used in the front end analysis as a proxy to economic activity/severity of lockdowns'''
 class Citymapper_Data():
     def __init__(self):
         # Ignore SSL certificate errors
@@ -55,7 +52,6 @@ class Citymapper_Data():
         self.country_movement["country"][self.country_movement["city"]== "UK"] = "United Kingdom"
         self.country_movement["movement"] = pd.to_numeric(self.country_movement["movement"], errors="coerce")
         self.country_movement=self.country_movement.sort_values(by="date", ascending=True)
-        # print(self.country_movement)
         rolling_average = []
         for city in self.cities:
             df = self.citymovement[self.citymovement["city"] == city]

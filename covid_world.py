@@ -1,24 +1,25 @@
 import urllib.request
-from urllib.request import urlopen
 from bs4 import BeautifulSoup
-import ssl
 import re
 import sqlite3
 import datetime
 import pandas as pd
 import numpy as np
-    
+
+'''This class scrapes and cleans table data from the https://www.worldometers.info/coronavirus/ site'''
 class Infometer_Data():
     def __init__(self):
-        Infometer_Data.alldates=pd.date_range(start='2020-01-22', end=datetime.datetime.today())
+        Infometer_Data.alldates=pd.date_range(start='2022-01-22', end=datetime.datetime.today())
         Infometer_Data.country_count = 200
+
+    '''this method collects the names of all of the countries whose data is posted on the site, this is so the program can quickly iterate through URLs later to pull individual country data'''
     def retrieve_countries(self):
         print('Creating Website Connection...')
         a=[]
         url = 'https://www.worldometers.info/coronavirus/'
         page=urllib.request.Request(url,headers={'User-Agent': 'Mozilla/5.0'})
         infile=urllib.request.urlopen(page).read()
-        data = infile.decode('ISO-8859-1') # Read the content as string decoded with ISO-8859-1
+        data = infile.decode('ISO-8859-1')
         soup = BeautifulSoup(data, "html.parser")
         count=soup.text.split('\n\nAll\n\n')[1].split('\n\n\n\nTotal')[0].split('\n')
         for line in count:
@@ -28,6 +29,8 @@ class Infometer_Data():
         Infometer_Data.countries = a
         for country in Infometer_Data.countries:
             area=country.replace(' ','').replace('.','').replace('-','')
+
+    '''This method takes each of the countries on the infometer coronavirus front page and iterate rates through there sites (website path + '/country_name')'''
     def store_webpages(self):
         print('\nStoring Worldometers data locally\n')
         n=-1
@@ -41,7 +44,7 @@ class Infometer_Data():
                 url = 'https://www.worldometers.info/coronavirus/country/'+country.replace('Hong Kong','china-hong-kong-sar').replace('USA','US').replace('UAE','united-arab-emirates').replace('S.','South').replace('Czechia','czech-republic').replace('North Macedonia','macedonia').replace(' ','-')
                 page=urllib.request.Request(url,headers={'User-Agent': 'Mozilla/5.0'})
                 infile=urllib.request.urlopen(page).read()
-                data = infile.decode('ISO-8859-1') # Read the content as string decoded with ISO-8859-1
+                data = infile.decode('ISO-8859-1')
                 soup = BeautifulSoup(data, "html.parser")
                 webpage = soup.decode('ISO-8859-1')
                 with open("main.html", "w", encoding="utf-8") as f:
@@ -51,29 +54,30 @@ class Infometer_Data():
                 Infometer_Data.analysed_countries.append(country)
             except: broken_urls.append(country)
         print('Samples: ', Infometer_Data.analysed_countries, '\n\nBroken links: ', broken_urls, sep = '')
+
+    '''Each country specific page has a similar structure, as such the core data points are extracted for each one - this method in particular gets the dates of the available data'''
     def date(self):
         soup = Infometer_Data.country_pages[Infometer_Data.country]
         dates=eval(str(soup).split(' categories: ')[1].split('\n')[0].split('        },')[0])
         clean_date = []
         for n, date in enumerate(dates):
-            # if n<=m: date=date
-            # if n>m: date=date
-            date=datetime.datetime.strptime(date, '%b %d, %Y').strftime('%Y-%m-%d') #capital Y makes 4 digit year #b is for text months
+            date=datetime.datetime.strptime(date, '%b %d, %Y').strftime('%Y-%m-%d')
             clean_date.append(date)
-        # print(clean_date)
         self.clean_date = clean_date
+
+    '''The next set of script do the same thing instread retrieving the data points mentioned in the method names'''
     def population_data(self):
         url = "https://www.worldometers.info/world-population/population-by-country/"
         page=urllib.request.Request(url,headers={'User-Agent': 'Mozilla/5.0'})
         infile=urllib.request.urlopen(page).read()
-        data = infile.decode('ISO-8859-1') # Read the content as string decoded with ISO-8859-1
+        data = infile.decode('ISO-8859-1')
         soup = BeautifulSoup(data, "html.parser")
         rank, country, population, growth_rate, growth_abs, pop_dens, area, net_migrants, fert_rate, med_age, urban_pop, world_share = [], [], [], [], [], [], [], [], [], [] , [], []
-        table_rows = soup.find_all("tr") #list all table row tags
-        for row in table_rows: #going one row at a time so i cant use incorrect data
-            cells = row.find_all("td") #list of all <td> tags within a row
+        table_rows = soup.find_all("tr")
+        for row in table_rows:
+            cells = row.find_all("td")
             cells = [cell.text for cell in cells]
-            if not cells: #skip rows without td elements
+            if not cells:
                 continue
             [column.append(value) for column,value in zip([rank, country, population, growth_rate, growth_abs, pop_dens, area, net_migrants, fert_rate, med_age, urban_pop, world_share], cells)]
         population_df = pd.DataFrame({"rank":rank, "country":country, "population":population, "growth_rate":growth_rate, "growth_abs":growth_abs, "pop_dens":pop_dens, "area":area, "net_migrants":net_migrants, "fert_rate":fert_rate, "med_age":med_age, "urban_pop":urban_pop, "world_share":world_share})
@@ -82,7 +86,7 @@ class Infometer_Data():
             population_df[column] = population_df[column].str.replace("N.A.", "0")
             population_df[column] = population_df[column].str.replace(",", "")
             population_df[column] = pd.to_numeric(population_df[column].str.strip(' %'))
-            population_df[column] = population_df[column].fillna(0) #fillna only works with numeric data
+            population_df[column] = population_df[column].fillna(0)
         for column in percentage_columns:
             population_df[column] = population_df[column]/100
         population_df = population_df.replace("Inf", 0)
@@ -91,21 +95,20 @@ class Infometer_Data():
         url = "https://www.worldometers.info/coronavirus/"
         page=urllib.request.Request(url,headers={'User-Agent': 'Mozilla/5.0'}) #work aro
         infile=urllib.request.urlopen(page).read()
-        data = infile.decode('ISO-8859-1') # Read the content as string decoded with ISO-8859-1
+        data = infile.decode('ISO-8859-1')
         soup = BeautifulSoup(data, "html.parser")
 
         rank, country, cases, n_cases, deaths, n_deaths, recovered, n_recovered, active_cases, critcal, cases_1m, deaths_1m, tests, tests_1m, population, continent, cases_p1, death_p1, test_p1 = [], [], [], [], [], [], [], [], [], [] , [], [], [], [], [], [], [], [], []
-        table_rows = soup.find_all("tr") #list all table row tags
-        for n, row in enumerate(table_rows): #going one row at a time so i cant use incorrect data
-            cells = row.find_all("td") #list of all <td> tags within a row
+        table_rows = soup.find_all("tr")
+        for n, row in enumerate(table_rows):
+            cells = row.find_all("td")
             cells = [cell.text for cell in cells]
-            if not cells: #skip rows without td elements
+            if not cells:
                 continue
             [column.append(value) for column,value in zip([rank, country, cases, n_cases, deaths, n_deaths, recovered, n_recovered, active_cases, critcal, cases_1m, deaths_1m, tests, tests_1m, population, continent, cases_p1, death_p1, test_p1], cells)]
 
         cumulative_df = pd.DataFrame({"rank":rank, "country":country, "cases":cases, "new_cases":n_cases, "deaths":deaths, "new_deaths":n_deaths, "recovered":recovered, "new_recovered":n_recovered, "active_cases":active_cases, "critcal":critcal, "cases_per_million":cases_1m, "deaths_per_million":deaths_1m, "tests":tests, "tests_per_million":tests_1m,  "population":population,  "continent":continent, "people_per_case":cases_p1, "people_per_death":death_p1, "people_per_test":test_p1})
         cumulative_df = cumulative_df.shift(-8)
-        # print(len(cumulative_df))
 
         for column in cumulative_df.columns.drop(["country", "continent"]):
             cumulative_df[column] = cumulative_df[column].str.replace("N/A", "0")
@@ -145,8 +148,6 @@ class Infometer_Data():
         Infometer_Data.daily_deaths_table=Infometer_Data.daily_deaths_table.replace(np.nan, 0).fillna(0).replace('NaN', 0).replace('nan', 0)
         Infometer_Data.daily_deaths_table['date']=Infometer_Data.daily_deaths_table.index
         Infometer_Data.daily_deaths_table[country] = Infometer_Data.daily_deaths_table[country].rolling(window=7).mean()
-        # Infometer_Data.daily_deaths_table.rename(columns={"SKorea":'South Korea'}, inplace=True) #integers not strings!
-        # daily_deaths_table_weekly=Infometer_Data.daily_deaths_table #define new table to group by week
     def retrieve_death_three_d_data(self):
         country = Infometer_Data.country
         if country == 'China':
@@ -214,39 +215,30 @@ class Infometer_Data():
             Infometer_Data.daily_cases_table['date']=Infometer_Data.daily_cases_table.index
             Infometer_Data.daily_cases_table[country] = Infometer_Data.daily_cases_table[country].rolling(window=7).mean()
         except: pass
+
+
+    '''Some derived data was also calculated in this section, as this metrics were developed early on some suimplofying assumptions were made, i.e. the death rate is fair constant across different countries, therefore you could assess the efficacy of testing regimes by looking at the ratio of cases to deaths'''
     def testing_performance(self):
         Infometer_Data.testing_performance = Infometer_Data.daily_cases_table.sum()/Infometer_Data.daily_deaths_table.sum()
         Infometer_Data.testing_performance = Infometer_Data.testing_performance.reset_index().rename(columns={'index':'country', 0 : 'testing_performance'}) #integers not strings!
         row = ['World', Infometer_Data.testing_performance['testing_performance'].mean()]
         Infometer_Data.testing_performance.loc[len(Infometer_Data.testing_performance)] = row
-    def positivity(self):
-        Infometer_Data.analysed_countries = [country.replace(' ','').replace('.','') for country in Infometer_Data.analysed_countries]
-        Infometer_Data.positivity_rate = Infometer_Data.daily_deaths_table[Infometer_Data.analysed_countries]/Infometer_Data.daily_cases_table[Infometer_Data.analysed_countries]
-        Infometer_Data.positivity_rate=Infometer_Data.positivity_rate.replace(0, np.nan)
-        Infometer_Data.positivity_rate['World'] = Infometer_Data.positivity_rate.mean(axis=1)
-        Infometer_Data.positivity_rate=Infometer_Data.positivity_rate.reset_index().rename(columns={'index' :'date'})
-        for column in Infometer_Data.positivity_rate.columns.drop('date'):
-            Infometer_Data.positivity_rate[column] = Infometer_Data.positivity_rate[column].rolling(window=7).mean()
-        Infometer_Data.positivity_rate = pd.melt(Infometer_Data.positivity_rate, id_vars='date', value_vars=Infometer_Data.positivity_rate.columns.drop('date').tolist(), value_name = 'positivity %', var_name = 'country')
-        Infometer_Data.positivity_rate['positivity %'] = Infometer_Data.positivity_rate['positivity %']*100
-        Infometer_Data.positivity_rate['country'] = Infometer_Data.positivity_rate['country'].str.replace("SKorea", "South Korea")
+
     def country_case_rate(self):
         Infometer_Data.daily_cases_table.rename(columns={"SKorea":'South Korea'}, inplace=True)
         pop_map = Infometer_Data.cumulative_table[["country", "population"]].drop_duplicates()
         pop_map = dict(zip(Infometer_Data.cumulative_table["country"],Infometer_Data.cumulative_table["population"]))
-        # print(pop_map)
         Infometer_Data.daily_cases_table = pd.melt(Infometer_Data.daily_cases_table, id_vars='date', value_vars=Infometer_Data.daily_cases_table.columns.drop('date').tolist(), value_name = 'cases', var_name = 'country')
         Infometer_Data.daily_cases_table["country"] = Infometer_Data.daily_cases_table["country"].str.replace(" ", "").str.replace("(?<=[a-z])(?=[A-Z])", " ").str.replace("aa", "a a").str.replace("dadand", "dad and").str.replace("eof", "e of")
         Infometer_Data.daily_deaths_table =  pd.melt(Infometer_Data.daily_deaths_table, id_vars='date', value_vars=Infometer_Data.daily_deaths_table.columns.drop('date').tolist(), value_name = 'deaths', var_name = 'country')
         Infometer_Data.daily_deaths_table["country"] = Infometer_Data.daily_deaths_table["country"].str.replace(" ", "").str.replace("(?<=[a-z])(?=[A-Z])", " ").str.replace("aa", "a a").str.replace("dadand", "dad and").str.replace("eof", "e of")
-        # print(Infometer_Data.daily_cases_table["country"].drop_duplicates())
         Infometer_Data.dc_melt = Infometer_Data.daily_cases_table
         Infometer_Data.dc_melt["population"] = Infometer_Data.dc_melt["country"].map(pop_map)
         print(Infometer_Data.dc_melt["country"][Infometer_Data.dc_melt["population"].isnull()].drop_duplicates())
         Infometer_Data.dc_melt = Infometer_Data.dc_melt[~Infometer_Data.dc_melt["population"].isnull()]
         Infometer_Data.dc_melt["case_rate_1M"] = 1e6 * Infometer_Data.dc_melt["cases"]/Infometer_Data.dc_melt["population"]
-        # print(Infometer_Data.dc_melt)
         Infometer_Data.country_df = Infometer_Data.dc_melt["country"].drop_duplicates()
+
     def save_infometer_data(self):
         conn = sqlite3.connect('covid.sqlite')
         Infometer_Data.total_death_table.to_sql('total_death_table', conn, if_exists='replace', index=False)
@@ -257,7 +249,6 @@ class Infometer_Data():
         Infometer_Data.recovery_rate_table.to_sql('recovery_rate_table', conn, if_exists='replace', index=False)
         Infometer_Data.daily_cases_table.to_sql('daily_cases_table', conn, if_exists='replace', index=False)
         Infometer_Data.testing_performance.to_sql('mortality_rate_table', conn, if_exists='replace', index=False)
-        Infometer_Data.positivity_rate.to_sql('positivity_table', conn, if_exists='replace', index=False)
         Infometer_Data.population_table.to_sql('population_table', conn, if_exists='replace', index=False)
         Infometer_Data.cumulative_table.to_sql('cumulative_table', conn, if_exists='replace', index=False)
         Infometer_Data.dc_melt.to_sql('global_rates_table', conn, if_exists='replace', index=False)
@@ -292,7 +283,6 @@ if __name__ == '__main__':
     for country in bad_data:
         Infometer_Data.analysed_countries.remove(country)
     infometer_class_object.testing_performance()
-    infometer_class_object.positivity()
     infometer_class_object.country_case_rate()
     print('\nInfometer Data Saving...')
     infometer_class_object.save_infometer_data()

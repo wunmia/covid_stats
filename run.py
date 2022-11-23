@@ -45,20 +45,19 @@ def run():
     for country in bad_data:
         Infometer_Data.analysed_countries.remove(country)
     infometer_class_object.testing_performance()
-    infometer_class_object.positivity()
     infometer_class_object.country_case_rate()
     print('\nInfometer Data Saving...')
     infometer_class_object.save_infometer_data()
 
     # 3 Get Citymapper data
     #depreciated due to city mapper api going off the grid
-    print('\n\nRunning CityMapper Movement Analysis...\nGenerating Location Data...')
-    citymapper_class_object = Citymapper_Data()
-    print("Retrieving city data...\nRetrieving country data ...")
-    citymapper_class_object.retrieve_city_movements()
-    print('Citymapper Data Saving...')
-    citymapper_class_object.save_citimapper_data()
-    print("\n\nMODEL HAS BEEN UPDATED")
+    # print('\n\nRunning CityMapper Movement Analysis...\nGenerating Location Data...')
+    # citymapper_class_object = Citymapper_Data()
+    # print("Retrieving city data...\nRetrieving country data ...")
+    # citymapper_class_object.retrieve_city_movements()
+    # print('Citymapper Data Saving...')
+    # citymapper_class_object.save_citimapper_data()
+    # print("\n\nMODEL HAS BEEN UPDATED")
 
 if __name__ == '__main__':
     run()
